@@ -11,7 +11,7 @@ class FmtConan(ConanFile):
     options = {"shared": [True, False],
                "header_only": [True, False],
                "fPIC": [True, False]}
-    default_options = "shared=False", "header_only=False", "fPIC=True"
+    default_options = "shared=False", "header_only=False", "fPIC=False"
     generators = "cmake"
 
     def configure(self):
@@ -33,13 +33,19 @@ conan_basic_setup()''')
         if self.options.header_only:
             return
         cmake = CMake(self)
-        flags = "-DBUILD_SHARED_LIBS=ON" if self.options.shared else ""
-        flags += " -DFMT_TEST=OFF -DFMT_DOCS=OFF"
-        flags += " -DCMAKE_INSTALL_PREFIX=%s" % self.package_folder
+        if self.options.shared:
+            cmake.definitions["BUILD_SHARED_LIBS"] = "ON"
+        else:
+            cmake.definitions["BUILD_SHARED_LIBS"] = "OFF"
         if self.settings.os != "Windows" and self.options.fPIC:
-            flags += " -DCMAKE_POSITION_INDEPENDENT_CODE=TRUE"
-        self.run('cmake fmt %s %s' % (cmake.command_line, flags))
-        self.run("cmake --build . --target install %s" % cmake.build_config)
+            cmake.definitions["CMAKE_POSITION_INDEPENDENT_CODE"] = "True"
+        cmake.definitions["FMT_TEST"] = "OFF"
+        cmake.definitions["FMT_DOCS"] = "OFF"
+        cmake.definitions["CMAKE_INSTALL_PREFIX"] = self.package_folder
+        
+        cmake.configure(source_dir="fmt")
+        cmake.build()
+        cmake.install()
 
     def package_info(self):
         if self.options.header_only:
